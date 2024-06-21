@@ -1027,14 +1027,17 @@ TwoOp:	(X_Y)		is op4_4=0xF & X_Y						{ export *:1 X_Y; }
 }
 # prefix	mode 1100	operand		JP operand		Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
 :JP TwoOp			is op0_4=0xC ... & TwoOp {
-	goto TwoOp;
+	local addr:$(RAM_W) = & TwoOp;
+	goto [addr];
 }
 # prefix	mode 1101	operand		CALL operand	Push 16-bit PC, low 16 bits of PC := operand (modes 2 CALL #imm8 and 3 CALL addr8 reassigned, see below)
 :CALL TwoOp		is op0_4=0xD ... & TwoOp {
 	local pc:2 = inst_next;
 	pushw(pc);
-	call TwoOp;
+	local addr:$(RAM_W) = & TwoOp;
+	call [ addr ];
 }
+
 
 # two-operand instructions addressing modes (16-bit operations)
 # CPW/LDW is a special case: prefix modifies both operands
