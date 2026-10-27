@@ -48,6 +48,6 @@ If the flash image is larger than 32 kbytes, use `STM8:BE:24` language, otherwis
 | A function returns its result in the flags (issue #12) | new `__flagreturn` calling convention |
 | "Overlapping input varnodes" (issue #11) | not reproducible: 233 SDCC library functions and 672 random functions decompile without it; the reporter's firmware was not available |
 | Function ID databases (issue #6) | remaining: not part of a processor module |
-| The 16-bit (medium) language truncates far (24-bit) operands | inherent to its 16-bit address space; use `STM8:BE:24` |
+| The 16-bit (medium) language truncates far (24-bit) operands | operands are now displayed in full; their p-code effect is modulo 64 KB, inherent to a 16-bit address space (a 16-bit space has no memory or branch targets above 0xFFFF): use `STM8:BE:24` for far code and data |
 | JRF-as-skip code (SDCC's one-byte skip trick) jumps into the middle of an instruction | remaining: Ghidra cannot hold overlapping instructions |
 | SDCC `--debug` ELF files: the GCC exception-handler analyzer reports an error | remaining: SDCC writes 4-byte addresses in `.debug_frame`, Ghidra expects the pointer size |

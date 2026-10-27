@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import compare  # noqa: E402
 from compare import canon  # noqa: E402
 
-compare.NUMMASK = 0xffff      # the 16-bit language cannot show the upper byte of far addresses; this check compares low 16 bits
+compare.NUMMASK = 0xffffff
 # uCsim errors confirmed by two assemblers in the exhaustive decode test (GHIDRA-RARE.md): wrong operand / opcode text
 UCSIM_BUGS = re.compile(r'^(bcpl|bccm) |^addw y,\(\d+,sp\)$|^(subw [xy],\d+|ldw y,\[\d+\]|ldw \[\d+\],y|ldf \[\d+\],a)$')
 

@@ -36,7 +36,7 @@ freely licensed sample projects by pinned URL and SHA-256 (nothing is committed)
 
 ## Doesn't work (and why)
 
-- The medium (16-bit) language has a 16-bit address space: the upper byte of LDF/JPF/CALLF/INT operands is lost. Use the large language.
+- The medium (16-bit) language shows the full 24-bit operand of LDF/JPF/CALLF/INT, but its address space has 16 bits, so p-code can only access or jump to the address modulo 64 KB: a 16-bit space has no memory beyond 0xFFFF to read, write or branch to. Images that use far addresses need the large language (which is why the README recommends `STM8:BE:24` for flash above 32 KB).
 - SDCC's `JRF` skip trick (a one-byte `JRF` consuming the first byte of the next instruction, jumped to from elsewhere) creates
   overlapping instructions, which Ghidra cannot hold: the jumped-to byte is reported as a conflicting instruction.
 - `.debug_frame` of SDCC's ELF files makes Ghidra's GCC exception analyzer log an error (4-byte addresses in a 2/3-byte

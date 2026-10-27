@@ -7,7 +7,7 @@
 | Source | https://github.com/esaulenka/ghidra_STM8, HEAD `45b7097` ("Merge pull request #13 from abliss/patch-1", 2025-07-28) |
 | Ghidra-Rare fork | branch `ghidra-rare` of the aleph-void fork; the history below the Ghidra-Rare commits is the original repository's |
 | License | Apache-2.0 (`LICENSE`) |
-| Original authors | Alexey Esaulenko (GitHub @esaulenka, also committing as "alexeye"): the module, the analyzer, the manual index; Adam Bliss (@abliss): `SUB SP,#` display fix (PR #13); "kio" (@Megatokio): `CC_H` calculation and the `INC` / `INCW` fix (PR #2) |
+| Original authors | from `git log` of the original history (40 commits): Alexey Esaulenko (GitHub @esaulenka; 32 commits, plus 1 as "alexeye"): the module, the analyzer, the manual index; Adam Bliss (@abliss): `SUB SP,#` display fix (PR #13); "kio" (@Megatokio): `CC_H` calculation and the `INC` / `INCW` fix (PR #2) |
 | Based on | the STM8 CPU programming manual PM0044 (opcode tables), Ghidra's module template |
 
 ## Other implementations
@@ -28,10 +28,11 @@ No code was borrowed from elsewhere.
 7. `SUBW` H flag: the borrow out of bit 7 (the upstream expression had an operator-precedence error).
 8. `ADDW X,#` / `SUBW X,#` print the `#`; the undefined opcodes 72 A0 / 72 AB were removed; `ADD SP,#` (upstream issue #16);
    unreachable constructors removed (`Jcond "A"`, `Jcond "F"`, two dead operand rows).
-9. cspec: argument/result registers `Y:X` for 32-bit values, `Y` killed by calls, `__farcall` stack arguments at SP+4,
+9. LDF / JPF / CALLF / INT print the full 24-bit operand also in the 16-bit language (the token is displayed, not the truncated address).
+10. cspec: argument/result registers `Y:X` for 32-bit values, `Y` killed by calls, `__farcall` stack arguments at SP+4,
    new `__flagreturn` prototype (upstream issue #12); `STM8.dwarf` register map and `STM8.opinion` (ELF, EM_STM8 = 186);
    the DWARF mapping is referenced from the language definitions.
-10. Build files (`build.gradle`, `extension.properties`), README updates, `GHIDRA-RARE.md`, `CREDITS.md`, `test/`.
+11. Build files (`build.gradle`, `extension.properties`), README updates, `GHIDRA-RARE.md`, `CREDITS.md`, `test/`.
 
 ## Sources and reference tools
 

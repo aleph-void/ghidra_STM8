@@ -56,8 +56,8 @@ echo "   AS and sdasstm8 re-assemble the large language's disassembly to the ori
 python3 "$HERE/asm_roundtrip.py" "$W/gh24.txt" "$W/all.bin" 8 "$W/ok24.txt" | tee "$W/roundtrip.txt" | tail -8 || fail=1
 echo "   against uCsim, large language (24-bit addresses)"
 python3 "$HERE/compare.py" "$W/gh24.txt" "$W/uc.txt" --asm-ok "$W/ok24.txt" --corpus "$W/all.bin" --show 2 | tee "$W/compare24.txt" | grep -v "^       " | cut -c1-170 || fail=1
-echo "   against uCsim, medium language (addresses shown modulo 64 KB)"
-python3 "$HERE/compare.py" "$W/gh16.txt" "$W/uc.txt" --asm-ok "$W/ok24.txt" --corpus "$W/all.bin" --mask16 --show 2 | tee "$W/compare16.txt" | grep -v "^       " | cut -c1-170 || fail=1
+echo "   against uCsim, medium language (far operands shown in full, accessed modulo 64 KB)"
+python3 "$HERE/compare.py" "$W/gh16.txt" "$W/uc.txt" --asm-ok "$W/ok24.txt" --corpus "$W/all.bin" --show 2 | tee "$W/compare16.txt" | grep -v "^       " | cut -c1-170 || fail=1
 
 echo "== 3. every constructor is reached"
 "$HERE/decode-corpus.sh" STM8:BE:24:default "$W/all.bin" "$W/reach.txt" 8 Reach.java

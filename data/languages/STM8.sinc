@@ -291,7 +291,7 @@ Addr24: val24u is val24u { export *:1 val24u; }
 	return [x];
 }
 # -		1000 0010	addr24	INT			Special jump for interrupt vector table
-:INT Addr24			is Pre00 & op0_8=0x82 ; Addr24 {
+:INT val24u			is Pre00 & op0_8=0x82 ; Addr24 & val24u {
 	goto Addr24;
 }
 # -		1000 0011			TRAP		Force trap interrupt
@@ -338,7 +338,7 @@ define pcodeop __DebugBreak;
 	$(CC_C) = ! $(CC_C);
 }
 # -		1000 1101	addr24	CALLF addr24	Push 24-bit PC; PC := addr24
-:CALLF Addr24		is Pre00 & op0_8=0x8D ; Addr24 {
+:CALLF val24u		is Pre00 & op0_8=0x8D ; Addr24 & val24u {
 	local pc:3 = inst_next;
 	pushdw(pc);
 	call Addr24;
@@ -903,7 +903,7 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 #
 
 # -/90	1010 0111  addr24	LDF (addr24,X/Y),A		Load far (=LD #imm8,A)
-:LDF (Addr24, X_Y), A		is X_Y & op0_8=0xA7 ; Addr24 & A {
+:LDF (val24u, X_Y), A		is X_Y & op0_8=0xA7 ; Addr24 & val24u & A {
 	local addr:$(RAM_W) = &Addr24 + zext(X_Y);
 	*:1 addr = A;	# why load not working??
 	flagNZ(A);
@@ -915,7 +915,7 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 	flagNZ(A);
 }
 # -		1010 1100  addr24	JPF addr24				PC := addr24 (=JP #imm8)
-:JPF Addr24				is Pre00 & op0_8=0xAC ; Addr24 {
+:JPF val24u				is Pre00 & op0_8=0xAC ; Addr24 & val24u {
 	PC = & Addr24;
 	goto Addr24;
 }
@@ -926,7 +926,7 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 	goto [addr];
 }
 # -		1011 1100  addr24	LDF A,addr24			Load far (=JP addr8)
-:LDF A, Addr24			is Pre00 & op0_8=0xBC ; Addr24 & A {
+:LDF A, val24u			is Pre00 & op0_8=0xBC ; Addr24 & val24u & A {
 	load(A, Addr24);
 }
 # 92	1011 1100  addr16	LDF A,[addr16]			Load far, 16-bit address of 24-bit pointer
@@ -940,7 +940,7 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 	call offset8;
 }
 # -		1011 1101  addr24	LDF addr24,A			Operand := A (=CALL addr8)
-:LDF Addr24, A			is Pre00 & op0_8=0xBD ; Addr24 & A {
+:LDF val24u, A			is Pre00 & op0_8=0xBD ; Addr24 & val24u & A {
 	load(Addr24, A);
 }
 # 92	1011 1101  addr16	LDF [addr16],A			Operand := A, 16-bit address of 24-bit pointer
@@ -950,7 +950,7 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 	flagNZ(A);
 }
 # -/90	1010 1111  addr24	LDF A,(addr24,X/Y)		Load far (=LDW #imm8,X)
-:LDF A, (Addr24, X_Y)		is op0_8=0xAF ; Addr24 & A & X_Y {
+:LDF A, (val24u, X_Y)		is op0_8=0xAF ; Addr24 & val24u & A & X_Y {
 	local addr:$(RAM_W) = &Addr24 + zext(X_Y);
 	load (A, *:1 addr);
 }
