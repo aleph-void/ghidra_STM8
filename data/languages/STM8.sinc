@@ -101,11 +101,12 @@ macro flagAddCV(a,b) {
 macro flagAdcHb(a,b,c) {
 	$(CC_H) = ( ( (a&b) | (~(a+b+c)&(a|b)) ) & 0x08 ) != 0;
 }
+# H of the 16-bit ADDW / SUBW is the carry (borrow) out of bit 7 (uCsim agrees; PM0044 not available here)
+macro flagSubtractHw(a,b) {
+	$(CC_H) = ( (a ^ b ^ (a - b)) & 0x100 ) != 0;
+}
 macro flagAddHw(a,b) {
 	$(CC_H) = ( ( (a&b) | (~(a+b)&(a|b)) ) & 0x80 ) != 0;
-}
-macro flagSubtractHw(a,b) {
-	$(CC_H) = ( (a&b&(a-b)) | (~a&(b|(a-b))) & 0x80 ) != 0;
 }
 
 
@@ -186,13 +187,11 @@ macro addw(a, b) {
 	flagNZ(a);
 }
 macro substractCarry(a, b) {
-	local cc_c = $(CC_C);
-	cc_c = a < b;
-	$(CC_V) = sborrow(a, b);
-	local result = a - b;
-	$(CC_C) = $(CC_C) || (result < cc_c);
-	$(CC_V) = $(CC_V) ^^ sborrow(result, cc_c);
-	a = result - cc_c;
+	local cin = $(CC_C);
+	local r = a - b;
+	$(CC_C) = (a < b) || (r < cin);
+	$(CC_V) = sborrow(a, b) ^^ sborrow(r, cin);
+	a = r - cin;
 	flagNZ(a);
 }
 macro addCarry(a, b) {
@@ -400,27 +399,21 @@ define pcodeop __WaitForEvent;
 	$(CC_C) = 1;
 }
 # -		1001 1010			RIM			Reset interrupt mask (enable interrupts)
-define pcodeop __EnableInterrupt;  
 :RIM				is Pre00 & op0_8=0x9A {
 	$(CC_I1) = 1;
 	$(CC_I0) = 0;
-	__EnableInterrupt();
 }
 # -		1001 1011			SIM			Set interrupt mask (disable interrupts)
-define pcodeop __DisableInterrupt;  
 :SIM				is Pre00 & op0_8=0x9B {
 	$(CC_I1) = 1;
 	$(CC_I0) = 1;
-	__DisableInterrupt();
 }
 # -		1001 1100			RVF			Reset (clear) overflow flag
 :RVF				is Pre00 & op0_8=0x9C {
 	$(CC_V) = 0;
 }
 # -		1001 1101			NOP			No operation
-define pcodeop __Nop;
 :NOP				is Pre00 & op0_8=0x9D {
-	__Nop();
 }
 # -/90	1001 1110			LD A,XH/YH	A := XH/YH
 :LD A, XH_YH		is op0_8=0x9E & A & XH_YH {
@@ -540,8 +533,6 @@ BitNo:	"#"^bit1_3	is bit1_3	{ local x:1 = bit1_3; export x; }
 #
 
 # branch conditions
-Jcond: "A"		is Pre00 & op0_4=0x0	{ local x:1 = 1; export x; }						# Branch always (true)
-Jcond: "F"		is Pre00 & op0_4=0x1	{ local x:1 = 0; export x; }						# Branch never (false)
 Jcond: "UGT"	is Pre00 & op0_4=0x2	{ local x:1 = !$(CC_C) && !$(CC_Z); export x; }		# Branch if unsigned greater than (C=0 and Z=0)
 Jcond: "ULE"	is Pre00 & op0_4=0x3	{ local x:1 =  $(CC_C) ||  $(CC_Z); export x; }		# Branch if unsigned less than or equal (C=1 or Z=1)
 Jcond: "NC"		is Pre00 & op0_4=0x4	{ local x:1 = !$(CC_C); export x; }					# Branch if no carry (C=0)
@@ -557,19 +548,24 @@ Jcond: "SLE"	is Pre00 & op0_4=0xD	{ local x:1 =  $(CC_Z) || $(CC_N)!=$(CC_V); ex
 Jcond: "SGE"	is Pre00 & op0_4=0xE	{ local x:1 = $(CC_N)==$(CC_V); export x; }			# Branch if signed greater or equal (N=V)
 Jcond: "SLT"	is Pre00 & op0_4=0xF	{ local x:1 = $(CC_N)!=$(CC_V); export x; }			# Branch if signed less than (N!=V)
 
-Jcond: "NH"		is Pre90 & op0_4=0x8	{ local x:1 = !$(CC_V); export x; }					# Branch if not half-carry (H=0)
-Jcond: "H"		is Pre90 & op0_4=0x9	{ local x:1 =  $(CC_V); export x; }					# Branch if half-carry (H=1)
+Jcond: "NH"		is Pre90 & op0_4=0x8	{ local x:1 = !$(CC_H); export x; }					# Branch if not half-carry (H=0)
+Jcond: "H"		is Pre90 & op0_4=0x9	{ local x:1 =  $(CC_H); export x; }					# Branch if half-carry (H=1)
 Jcond: "NM"		is Pre90 & op0_4=0xC	{ local x:1 = !($(CC_I0) || $(CC_I1)); export x; }	# Branch if not interrupt mask (I=0)
 Jcond: "M"		is Pre90 & op0_4=0xD	{ local x:1 =  ($(CC_I0) || $(CC_I1)); export x; }	# Branch if interrupts masked (I=1)
-# strange branches
-#Jcond: "IL"	is Pre90 & op0_4=0xE	{ local x:1 = ??; export x; }						# Branch if interrupt line is low
-#Jcond: "IH"	is Pre90 & op0_4=0xF	{ local x:1 = ??; export x; }						# Branch if interrupt line is high
+# branches on the level of the external interrupt pin: a hardware input, modelled as a pcodeop
+define pcodeop __InterruptLineLevel;
+Jcond: "IL"	is Pre90 & op0_4=0xE	{ local v:1 = __InterruptLineLevel(); local x:1 = v == 0; export x; }	# Branch if interrupt line is low
+Jcond: "IH"	is Pre90 & op0_4=0xF	{ local v:1 = __InterruptLineLevel(); local x:1 = v != 0; export x; }	# Branch if interrupt line is high
 
 :JR^Jcond offset8	is Jcond & op4_4=0x2 ; offset8 {
 	if (Jcond) goto offset8;
 }
 :JRA offset8		is Pre00 & op4_4=0x2 & op0_4=0x0 ; offset8 {
 	goto offset8;
+}
+# JRF never branches.  SDCC emits it as a one-byte skip (JRF followed by the byte of a one-byte instruction that is
+# the jump target of another path), so no flow to the displayed target may be created: the p-code is empty.
+:JRF offset8		is Pre00 & op4_4=0x2 & op0_4=0x1 ; offset8 {
 }
 
 
@@ -580,18 +576,21 @@ Jcond: "M"		is Pre90 & op0_4=0xD	{ local x:1 =  ($(CC_I0) || $(CC_I1)); export x
 
 # 72  1010 opcode	imm16	OPW X/Y,#imm16		16-bit immediate
 IdxOp: Imm16u		is op4_4=0xA ; Imm16u 		{ export Imm16u; }
+# (no immediate form for X: SUBW X,# and ADDW X,# are the single-prefix opcodes 1D / 1C below; 72 A0 / 72 AB are undefined)
 # 72  1011 opcode	addr16	OPW X/Y,addr16		16-bit absolute
 IdxOp: Addr16W		is op4_4=0xB ; Addr16W 		{ export Addr16W; }
+IdxOpX: Addr16W		is op4_4=0xB ; Addr16W 		{ export Addr16W; }
+IdxOpX: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 # 72  1111 opcode	addr8	OPW X/Y,(addr8,SP)	Stack-relative
 IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 
 # 72	mode 0000	oper	SUBW X,operand		X := X - operand (prefer opcode 1D for SUBW X,#imm16)
-:SUBW X, IdxOp		is Pre72 & op0_4=0x0 ... & IdxOp & X {
-	substractw(X, IdxOp);
+:SUBW X, IdxOpX		is Pre72 & op0_4=0x0 ... & IdxOpX & X {
+	substractw(X, IdxOpX);
 }
 #-		0001 1101	imm16	SUBW X,#imm16		X := X - immediate (=CALL (addr8,SP))
-:SUBW X, val16u		is Pre00 & op0_8=0x1D & X ; val16u {
-	substractw(X, val16u);
+:SUBW X, Imm16u		is Pre00 & op0_8=0x1D & X ; Imm16u {
+	substractw(X, Imm16u);
 }
 # 72	mode 0010	oper	SUBW Y,operand		Y := Y - operand
 :SUBW Y, IdxOp		is Pre72 & op0_4=0x2 ... & IdxOp & Y {
@@ -603,12 +602,12 @@ IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 	addw(Y, IdxOp);
 }
 # 72	mode 1011	oper	ADDW X,operand		X := X + operand (prefer opcode 1C for ADDW X,#imm16)
-:ADDW X, IdxOp		is Pre72 & op0_4=0xB ... & IdxOp & X {
-	addw(X, IdxOp);
+:ADDW X, IdxOpX		is Pre72 & op0_4=0xB ... & IdxOpX & X {
+	addw(X, IdxOpX);
 }
 #-		0001 1100	imm16	ADDW X,#imm16		X := X + immediate (=JP (addr8,SP))
-:ADDW X, val16u		is Pre00 & op0_8=0x1C & X ; val16u {
-	addw(X, val16u);
+:ADDW X, Imm16u		is Pre00 & op0_8=0x1C & X ; Imm16u {
+	addw(X, Imm16u);
 }
 
 
@@ -663,14 +662,20 @@ IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 	SP = SP - zext(Imm8u);
 }
 # -/90	0110 0010			DIV X/Y,A		Divide X/Y by A; 16-bit quotient in X/Y, remainder in A
-:DIV X_Y, A			is op0_8=0x62 & X_Y & A {	
+:DIV X_Y, A			is op0_8=0x62 & X_Y & A {
+	# division by zero: C is set and the registers keep their values (the other results are undefined in
+	# PM0044; uCsim also sets Z, which is copied here so that the p-code never divides by zero)
+	$(CC_V) = 0; $(CC_H) = 0; $(CC_N) = 0; $(CC_C) = 0;
+	if (A == 0) goto <divzero>;
 	local quot = X_Y / zext(A);
 	local rem = X_Y % zext(A);
-	$(CC_C) = (A == 0);
 	X_Y = quot;
 	A = rem:1;
-	$(CC_V) = 0; $(CC_H) = 0; $(CC_N) = 0;
 	$(CC_Z) = (X_Y == 0);
+	goto inst_next;
+<divzero>
+	$(CC_C) = 1;
+	$(CC_Z) = 1;
 }
 # -		0011 0101	imm8 addr16		MOV addr16,#imm8	Move immediate to memory (flags unaffected)
 :MOV Addr16B, Imm8u	is Pre00 & op0_8=0x35 ; Imm8u ; Addr16B {
@@ -686,13 +691,17 @@ IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 }
 # -		0110 0101	-		DIVW X,Y		Divide X by Y (16 bits); quotient in X, remainder in Y
 :DIVW X, Y			is Pre00 & op0_8=0x65 & X & Y {
+	$(CC_V) = 0; $(CC_H) = 0; $(CC_N) = 0; $(CC_C) = 0;
+	if (Y == 0) goto <divzero>;
 	local quot = X / Y;
 	local rem = X % Y;
-	$(CC_C) = (Y == 0);
 	X = quot;
 	Y = rem;
-	$(CC_V) = 0; $(CC_H) = 0; $(CC_N) = 0;
 	$(CC_Z) = (X == 0);
+	goto inst_next;
+<divzero>
+	$(CC_C) = 1;
+	$(CC_Z) = 1;
 }
 # -		0011 1011	addr16	PUSH addr16		Push onto stack
 :PUSH Addr16B		is Pre00 & op0_8=0x3B ; Addr16B {
@@ -703,7 +712,7 @@ IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 	pushb(Imm8u);
 }
 # -		0101 1011	imm8	ADDW SP,#imm8	SP := SP + imm8
-:ADDW SP, Imm8u		is Pre00 & op0_8=0x5B & SP ; Imm8u {
+:ADD SP, Imm8u		is Pre00 & op0_8=0x5B & SP ; Imm8u {
 	SP = SP + zext(Imm8u);
 }
 # -		0110 1011	addr8	LD (addr8,SP),A	Store relative to stack
@@ -955,7 +964,6 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 # two-operand instructions addressing modes (8-bit operations)
 
 # -		0001 opcode	addr8	OP (addr8,SP)		Stack-relative operand (see above; opcodes 16, 17, 1C, 1D do not follow pattern)
-TwoOp:	StackAddr8	is Pre00 & op4_4=0x1 ; StackAddr8		{ export StackAddr8; }
 # -		1010 opcode	imm8	OP #imm8			8-bit immediate operand (forbidden as destination)
 TwoOp:	Imm8u		is Pre00 & op4_4=0xA ; Imm8u			{ export Imm8u; }
 # -		1011 opcode	addr8	OP addr8			8-bit absolute address (forbidden for jump/call)
@@ -1026,14 +1034,32 @@ TwoOp:	(X_Y)		is op4_4=0xF & X_Y						{ export *:1 X_Y; }
 	addb(A, TwoOp);
 }
 # prefix	mode 1100	operand		JP operand		Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
-:JP TwoOp			is op0_4=0xC ... & TwoOp {
-	goto TwoOp;
+# JP / CALL transfer control to the effective address of the operand, not to the operand's contents
+JpOp: [Addr16W]		is Pre72 & op4_4=0xC ; Addr16W	{ local t:$(RAM_W) = zext(Addr16W); export t; }
+JpOp: [Addr8W]		is Pre92 & op4_4=0xC ; Addr8W 	{ local t:$(RAM_W) = zext(Addr8W); export t; }
+JpOp: (Addr16B, X_Y)	is op4_4=0xD & X_Y; Addr16B	{ local t:$(RAM_W) = zext(X_Y) + &Addr16B; export t; }
+JpOp: ([Addr16W], X)	is Pre72 & op4_4=0xD & X; Addr16W	{ local t:$(RAM_W) = zext(X + Addr16W); export t; }
+JpOp: ([Addr8W], X_Y_92) is op4_4=0xD & X_Y_92; Addr8W	{ local t:$(RAM_W) = zext(X_Y_92 + Addr8W); export t; }
+JpOp: (val8u, X_Y)	is op4_4=0xE & X_Y ; val8u		{ local t:$(RAM_W) = zext(X_Y + val8u); export t; }
+JpOp: (X_Y)		is op4_4=0xF & X_Y			{ local t:$(RAM_W) = zext(X_Y); export t; }
+
+# prefix	mode 1100	operand		JP operand		Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
+:JP Addr16B			is Pre00 & op0_8=0xCC ; Addr16B {
+	goto Addr16B;
+}
+:JP JpOp			is op0_4=0xC ... & JpOp {
+	goto [JpOp];
 }
 # prefix	mode 1101	operand		CALL operand	Push 16-bit PC, low 16 bits of PC := operand (modes 2 CALL #imm8 and 3 CALL addr8 reassigned, see below)
-:CALL TwoOp		is op0_4=0xD ... & TwoOp {
+:CALL Addr16B		is Pre00 & op0_8=0xCD ; Addr16B {
 	local pc:2 = inst_next;
 	pushw(pc);
-	call TwoOp;
+	call Addr16B;
+}
+:CALL JpOp			is op0_4=0xD ... & JpOp {
+	local pc:2 = inst_next;
+	pushw(pc);
+	call [JpOp];
 }
 
 # two-operand instructions addressing modes (16-bit operations)
@@ -1041,7 +1067,6 @@ TwoOp:	(X_Y)		is op4_4=0xF & X_Y						{ export *:1 X_Y; }
 
 # -		0001 opcode	addr8	OP (addr8,SP)		Stack-relative operand
 TwoOpW:	StackAddr8W		is Pre00 & op4_4=0x1 ; StackAddr8W	{ export StackAddr8W; }
-TwoOpW:	StackAddr8W		is Pre90 & op4_4=0x1 ; StackAddr8W	{ export StackAddr8W; }
 # -		1010 opcode	imm8	OP #imm8			8-bit immediate operand (forbidden as destination)
 TwoOpW:	Imm16u			is Pre00 & op4_4=0xA ; Imm16u		{ export Imm16u; }
 TwoOpW:	Imm16u			is Pre90 & op4_4=0xA ; Imm16u		{ export Imm16u; }
