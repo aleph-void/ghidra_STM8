@@ -11,6 +11,7 @@
             id="STM8:BE:24:default">
     <description>STM8 (large memory model)</description>
     <compiler name="default" spec="STM8.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="STM8.dwarf"/>
   </language>
   <language processor="STM8"
             endian="big"
@@ -22,5 +23,6 @@
             id="STM8:BE:16:default">
     <description>STM8 (medium memory model)</description>
     <compiler name="default" spec="STM8.cspec" id="default"/>
+    <external_name tool="DWARF.register.mapping.file" name="STM8.dwarf"/>
   </language>
 </language_definitions>

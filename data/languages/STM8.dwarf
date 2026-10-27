@@ -1,0 +1,13 @@
+<dwarf>
+	<!-- register numbers as SDCC writes them (sdcc debug ELF output): r0 A, r1 XL, r2 XH, r3 YL, r4 YH, r8 SP, r9 return address -->
+	<register_mappings>
+		<register_mapping dwarf="0" ghidra="A"/>
+		<register_mapping dwarf="1" ghidra="XL"/>
+		<register_mapping dwarf="2" ghidra="XH"/>
+		<register_mapping dwarf="3" ghidra="YL"/>
+		<register_mapping dwarf="4" ghidra="YH"/>
+		<register_mapping dwarf="8" ghidra="SP" stackpointer="true"/>
+		<register_mapping dwarf="9" ghidra="PC"/>
+	</register_mappings>
+	<call_frame_cfa value="2"/>
+</dwarf>
