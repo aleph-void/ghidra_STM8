@@ -12,6 +12,8 @@
 	</data_organization>
 
 	<stackpointer register="SP" space="RAM"/>
+	<!-- SDCC's stm8 convention: the first argument in A (8 bits), X (16 bits) or Y:X (32 bits), the others on the stack;
+	     the result in A, X or Y:X.  CALL pushes a 2-byte return address, CALLF a 3-byte one. -->
 	<default_proto>
 		<prototype name="__stdcall" extrapop="2" stackshift="2" strategy="register">
 			<input>
@@ -21,10 +23,9 @@
 				<pentry maxsize="2" minsize="2">
 					<register name="X"/>
 				</pentry>
-				<!--- rarely used?
-				<pentry maxsize="2" minsize="2">
-					<register name="Y"/>
-				</pentry> -->
+				<pentry maxsize="4" minsize="4">
+					<addr space="join" piece1="Y" piece2="X"/>
+				</pentry>
 				<pentry maxsize="500" minsize="1" align="1">
 					<addr space="stack" offset="3"/>
 				</pentry>
@@ -36,6 +37,9 @@
 				<pentry minsize="2" maxsize="2">
 					<register name="X"/>
 				</pentry>
+				<pentry minsize="4" maxsize="4">
+					<addr space="join" piece1="Y" piece2="X"/>
+				</pentry>
 			</output>
 			<unaffected>
 				<register name="SP"/>
@@ -43,6 +47,7 @@
 			<killedbycall>
 				<register name="A"/>
 				<register name="X"/>
+				<register name="Y"/>
 				<register name="CC"/>
 			</killedbycall>
 		</prototype>
@@ -56,12 +61,11 @@
 				<pentry maxsize="2" minsize="2">
 					<register name="X"/>
 				</pentry>
-				<!--- rarely used?
-				<pentry maxsize="2" minsize="2">
-					<register name="Y"/>
-				</pentry> -->
+				<pentry maxsize="4" minsize="4">
+					<addr space="join" piece1="Y" piece2="X"/>
+				</pentry>
 				<pentry maxsize="500" minsize="1" align="1">
-					<addr space="stack" offset="3"/>
+					<addr space="stack" offset="4"/>
 				</pentry>
 			</input>
 			<output>
@@ -71,6 +75,9 @@
 				<pentry minsize="2" maxsize="2">
 					<register name="X"/>
 				</pentry>
+				<pentry minsize="4" maxsize="4">
+					<addr space="join" piece1="Y" piece2="X"/>
+				</pentry>
 			</output>
 			<unaffected>
 				<register name="SP"/>
@@ -78,9 +85,42 @@
 			<killedbycall>
 				<register name="A"/>
 				<register name="X"/>
+				<register name="Y"/>
 				<register name="CC"/>
 			</killedbycall>
 		</prototype>
 
+	<!-- a function that returns its result in the condition flags (for example a compare whose caller branches on Z):
+	     set it as the calling convention of such a function -->
+		<prototype name="__flagreturn" extrapop="2" stackshift="2" strategy="register">
+			<input>
+				<pentry maxsize="1" minsize="1">
+					<register name="A"/>
+				</pentry>
+				<pentry maxsize="2" minsize="2">
+					<register name="X"/>
+				</pentry>
+				<pentry maxsize="4" minsize="4">
+					<addr space="join" piece1="Y" piece2="X"/>
+				</pentry>
+				<pentry maxsize="500" minsize="1" align="1">
+					<addr space="stack" offset="3"/>
+				</pentry>
+			</input>
+			<output>
+				<pentry minsize="1" maxsize="1">
+					<register name="CC"/>
+				</pentry>
+			</output>
+			<unaffected>
+				<register name="SP"/>
+			</unaffected>
+			<killedbycall>
+				<register name="A"/>
+				<register name="X"/>
+				<register name="Y"/>
+				<register name="CC"/>
+			</killedbycall>
+		</prototype>
 
 </compiler_spec>
